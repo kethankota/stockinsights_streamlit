@@ -28,5 +28,6 @@ def extract_NSEData(url,currDate,filename):
     
 st.title("Currently application is in development\nView sample data for now")
 
+st.write(datetime.now().astimezone().tzinfo)
 
 st.dataframe(pd.read_csv(filename))
