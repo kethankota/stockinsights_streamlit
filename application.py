@@ -1,51 +1,61 @@
 from datetime import datetime
-import requests
 import pandas as pd
-import numpy as np
-from io import BytesIO
-import pytz
 import time
+import pytz
 import streamlit as st
+from src.main import *
+from streamlit_autorefresh import st_autorefresh
+import configparser
 
-st.session_state.last_nse_run_status = 'Successful'
-st.session_state.last_nse_run_date = '21042023'
-
-
-def extract_NSEData():
-    original_tz = pytz.timezone('Asia/Kolkata')
-    currDate = datetime.strftime(datetime.now(original_tz).date(), "%d%m%Y")
-    url = 'https://archives.nseindia.com/products/content/sec_bhavdata_full_{currDate}.csv'
-    filename = './data/df_sec_bhavdata_dump.csv'
-    try:
-        response = requests.get(url.format(currDate=currDate), timeout=5)
-        if response.status_code == 200:
-            df_sec_bhavdata = pd.read_csv(
-                BytesIO(response.content), skipinitialspace=True)
-            df_sec_bhavdata_dump = pd.read_csv(filename)
-            df_sec_bhavdata_dump = pd.concat(
-                [df_sec_bhavdata_dump, df_sec_bhavdata])
-            delDate = df_sec_bhavdata_dump.DATE1.min()
-            df_sec_bhavdata_dump = df_sec_bhavdata_dump[~df_sec_bhavdata_dump['DATE1'].isin([
-                                                                                            delDate])]
-            # df_sec_bhavdata_dump.to_csv(filename,index=False)
-            return ("Successful", currDate)
-    except:
-        return ("Failure", currDate)
+original_tz = pytz.timezone('Asia/Kolkata')
+currDate = datetime.now(original_tz).date()
+currDate = datetime.strftime(currDate, "%d%m%Y")
 
 
-@st.cache_resource
-def run_job(change_run_hour=0):
-    while True:
-        if datetime.now().time().hour == 17:
-            tp_status = extract_NSEData()
-            st.session_state.last_nse_run_status = tp_status[0]
-            st.session_state.last_nse_run_date = tp_status[1]
-            time.sleep(60*60)
+@st.cache_resource(experimental_allow_widgets=True)
+def get_run_counter_session(val):
+    refresh_counter = st_autorefresh(interval=60000, limit=None, key=None)
+    return refresh_counter
+
+
+counter = get_run_counter_session(0)
+parser = configparser.ConfigParser()
+parser.read('./src/state_config.toml')
+
+if ('counter_value' not in st.session_state) & \
+    ('last_nse_run_status' not in st.session_state) & \
+        ('last_nse_run_time' not in st.session_state):
+    st.session_state.last_nse_run_status = parser['MANAGER']['STATUS']
+    st.session_state.last_nse_run_time = parser['MANAGER']['RUNTIME']
+    st.session_state.counter_value = int(parser['MANAGER']['COUNTER'])
+
+
+@st.cache_data()
+def update_counter(session_counter_value):
+    global currDate
+    if currDate != parser['MANAGER']['RUNDATE']:
+        parser['MANAGER']['RUNDATE'] = datetime.strftime(currDate, "%d%m%Y")
+        parser['MANAGER']['COUNTER'] = str(0)
+        st.cache_data.clear()
+    elif datetime.now(original_tz).time().strftime("%H:%M") == '20:00':
+        run_nse_dataextraction()
+        run_result = run_nse_insight_generation()
+        st.session_state.last_nse_run_status = run_result[0]
+        st.session_state.last_nse_run_time = str(
+            datetime.now(original_tz).time().strftime("%H:%M"))
+        parser['MANAGER']['STATUS'] = st.session_state.last_nse_run_status
+        parser['MANAGER']['RUNDATE'] = currDate
+        parser['MANAGER']['RUNTIME'] = st.session_state.last_nse_run_time
+    else:
+        parser['MANAGER']['COUNTER'] = str(session_counter_value)
+    with open('./src/state_config.toml', 'w') as writeConfigFile:
+        parser.write(writeConfigFile)
+
+
+update_counter(st.session_state.counter_value + counter)
 
 with st.sidebar:
     st.header("This Area was reserved for manual script run controls")
-
-#st.sidebar.header("This Area is still in development")
 
 st.markdown("<h1 style='text-align: center; color: #EDF5E1;'>STOCK MARKET - INSIGHTS</h1>",
             unsafe_allow_html=True)
@@ -53,27 +63,25 @@ st.divider()
 left_col, mid_col, right_col = st.columns([1, 1, 1])
 
 with left_col:
-   st.subheader("Exchange")
-   st.subheader("Last Run")
-   st.subheader("Run date")
+    st.subheader("Exchange")
+    st.subheader("Last Run")
+    st.subheader("Run date")
 
 with mid_col:
-   st.subheader("NSE")
-   if st.session_state.last_nse_run_status == 'Successful':
-       st.subheader(":green["+st.session_state.last_nse_run_status+"]")
-   else:
-       st.subheader(":red["+st.session_state.last_nse_run_status+"]")
-   st.subheader(
-       st.session_state.last_nse_run_date[:2]+"/"+st.session_state.last_nse_run_date[2:4])
+    st.subheader("NSE")
+    if st.session_state.last_nse_run_status == 'Successful':
+        st.subheader(":green["+st.session_state.last_nse_run_status+"]")
+    else:
+        st.subheader(":red["+st.session_state.last_nse_run_status+"]")
+    st.subheader(st.session_state.last_nse_run_time)
 
 with right_col:
-   st.subheader("BSE")
-   if st.session_state.last_nse_run_status == 'Successful':
-       st.subheader(":green["+st.session_state.last_nse_run_status+"]")
-   else:
-       st.subheader(":red["+st.session_state.last_nse_run_status+"]")
-   st.subheader(
-       st.session_state.last_nse_run_date[:2]+"/"+st.session_state.last_nse_run_date[2:4])
+    st.subheader("BSE")
+    if st.session_state.last_nse_run_status == 'Successful':
+        st.subheader(":green["+st.session_state.last_nse_run_status+"]")
+    else:
+        st.subheader(":red["+st.session_state.last_nse_run_status+"]")
+    st.subheader(st.session_state.last_nse_run_time)
 
 st.divider()
 st.subheader("Download the reports from the below tabs")
@@ -82,34 +90,15 @@ nse_tab, bse_tab = st.tabs(
     [":white[NSE Insights Data]", ":white[BSE Insights Data]"])
 
 with nse_tab:
-    report_dates = ['21/04', '20/04', '19/04', '18/04', '17/04']
-    with st.form("nse_report_download"):
-        sel_report_dates = st.radio(
-        "Select date to download report 👇",
-        report_dates,
-        key="nse_visibility",
-        horizontal=True)
-
-        # Every form must have a submit button.
-        left_col_nse_tab, mid_col_nse_tab, right_col_nse_tab = st.columns([2, 1, 2])
-        with mid_col_nse_tab:
-            submitted = st.form_submit_button("Download")
-            if submitted:
-                st.write("Selected date : ", sel_report_dates)
-
+    left_col_nse_tab, right_col_nse_tab = st.columns([3, 1])
+    with left_col_nse_tab:
+        st.write("")
+        st.write("Click on download button to download report as on {date}".format(
+            date = parser['MANAGER']['RUNDATE'][:2]+"/"+parser['MANAGER']['RUNDATE'][2:4]))
+    with right_col_nse_tab:
+        st.write("")
+        with open(my_config['NSE']['OUTPUTDIR']+"nse_insights.csv", 'rb') as f:
+            st.download_button('Download', f, file_name='NSE_Insights.csv')
 
 with bse_tab:
-    report_dates = ['21/04', '20/04', '19/04', '18/04', '17/04']
-    with st.form("bse_report_download"):
-        sel_report_dates = st.radio(
-        "Select date to download report 👇",
-        report_dates,
-        key="bse_visibility",
-        horizontal=True)
-
-        # Every form must have a submit button.
-        left_col_bse_tab, mid_col_bse_tab, right_col_bse_tab = st.columns([2, 1, 2])
-        with mid_col_bse_tab:
-            submitted = st.form_submit_button("Download")
-            if submitted:
-                st.write("Selected date : ", sel_report_dates)
+    st.write("BSE still in development")

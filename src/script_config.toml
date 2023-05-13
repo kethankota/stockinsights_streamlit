@@ -1,0 +1,7 @@
+[NSE]
+URL = https://archives.nseindia.com/products/content/sec_bhavdata_full_{currDate}.csv
+DATADUMPDIR = ./data/nse_sec_bhavdata_full_copy.csv
+OUTPUTDIR = ./output/
+DATERANGE = -360
+NSEFILTER_SERIES = ['BE', 'BZ'] 
+NSE_ROLLING_WINDOW = 15
