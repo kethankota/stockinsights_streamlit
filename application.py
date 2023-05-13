@@ -21,6 +21,8 @@ def get_run_counter_session(val):
 counter = get_run_counter_session(0)
 parser = configparser.ConfigParser()
 parser.read('./src/state_config.toml')
+my_config.read('./src/script_config.toml')
+
 
 if ('counter_value' not in st.session_state) & \
     ('last_nse_run_status' not in st.session_state) & \
