@@ -21,6 +21,7 @@ def get_run_counter_session(val):
 counter = get_run_counter_session(0)
 parser = configparser.ConfigParser()
 parser.read('./src/state_config.toml')
+my_config = configparser.ConfigParser()
 my_config.read('./src/script_config.toml')
 
 
