@@ -57,6 +57,7 @@ def update_counter(session_counter_value):
 
 update_counter(st.session_state.counter_value + counter)
 
+
 with st.sidebar:
     st.header("This Area was reserved for manual script run controls")
 
@@ -105,3 +106,4 @@ with nse_tab:
 
 with bse_tab:
     st.write("BSE still in development")
+
