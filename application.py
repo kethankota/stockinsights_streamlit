@@ -40,7 +40,7 @@ def update_counter(session_counter_value):
         parser['MANAGER']['RUNDATE'] = currDate
         parser['MANAGER']['COUNTER'] = str(0)
         st.cache_data.clear()
-    elif datetime.now(original_tz).time().strftime("%H:%M") == '20:19':
+    elif datetime.now(original_tz).time().strftime("%H:%M") == '20:00':
         run_nse_dataextraction()
         run_result = run_nse_insight_generation()
         st.session_state.last_nse_run_status = run_result[0]
