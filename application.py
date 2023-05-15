@@ -37,10 +37,10 @@ if ('counter_value' not in st.session_state) & \
 def update_counter(session_counter_value):
     global currDate
     if currDate != parser['MANAGER']['RUNDATE']:
-        parser['MANAGER']['RUNDATE'] = datetime.strftime(currDate, "%d%m%Y")
+        parser['MANAGER']['RUNDATE'] = currDate
         parser['MANAGER']['COUNTER'] = str(0)
         st.cache_data.clear()
-    elif datetime.now(original_tz).time().strftime("%H:%M") == '20:00':
+    elif datetime.now(original_tz).time().strftime("%H:%M") == '20:19':
         run_nse_dataextraction()
         run_result = run_nse_insight_generation()
         st.session_state.last_nse_run_status = run_result[0]
@@ -69,7 +69,7 @@ left_col, mid_col, right_col = st.columns([1, 1, 1])
 with left_col:
     st.subheader("Exchange")
     st.subheader("Last Run")
-    st.subheader("Run date")
+    st.subheader("Run Time")
 
 with mid_col:
     st.subheader("NSE")
